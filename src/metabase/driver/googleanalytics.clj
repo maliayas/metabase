@@ -185,11 +185,6 @@
 (def ^:private ^{:arglists '([database-id column-name])} memoized-column-metadata
   (memoize column-metadata))
 
-(def ^:private ^{:arglists '([database-id column-name])} built-in-name->display-name
-  "Given a DATABASE-ID and a COLUMN-NAME like `ga:users`, return an appropriate `:display_name` like `Users`."
-  (memoize
-   (comp (u/rpartial column-attribute :uiName) column-with-name)))
-
 (defn- add-col-metadata [{database :database} col]
   (merge col (memoized-column-metadata (u/get-id database) (:name col))))
 

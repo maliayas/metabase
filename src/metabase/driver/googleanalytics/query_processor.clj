@@ -39,9 +39,7 @@
 ;; says: Relative dates are always relative to the current date at the time of the query and are based on the timezone of the view (profile) specified in the query.
 (defn- get-timezone-id [] "UTC")
 
-(defn- date->ga-date
-  [date]
-  (u/format-date "yyyy-MM-dd" date))
+(def ^:private ^{:arglists '([date])} date->ga-date (partial u/format-date "yyyy-MM-dd"))
 
 (defprotocol ^:private IRValue
   (^:private ->rvalue [this]))
@@ -201,8 +199,7 @@
                  {:include-empty-rows false})
    :mbql? true})
 
-(defn- parse-number
-  [s]
+(defn- parse-number [s]
   (edn/read-string (s/replace s #"^0+(.+)$" "$1")))
 
 (def ^:private ga-dimension->date-format-fn
@@ -218,8 +215,7 @@
    "ga:month"     parse-number
    "ga:year"      parse-number})
 
-(defn- header->column
-  [^GaData$ColumnHeaders header]
+(defn- header->column [^GaData$ColumnHeaders header]
   (let [date-parser (ga-dimension->date-format-fn (.getName header))]
     (if date-parser
       {:name      (keyword "ga:date")
@@ -228,8 +224,7 @@
        :base-type          (ga-type->base-type (.getDataType header))
        :field-display-name "COOL"})))
 
-(defn- header->getter-fn
-  [^GaData$ColumnHeaders header]
+(defn- header->getter-fn [^GaData$ColumnHeaders header]
   (let [date-parser (ga-dimension->date-format-fn (.getName header))
         base-type   (ga-type->base-type (.getDataType header))]
     (cond
@@ -238,6 +233,7 @@
       :else                         identity)))
 
 (defn execute-query
+  "Execute a QUERY using the provided DO-QUERY function, and return the results in the usual format."
   [do-query query]
   (let [mbql?            (:mbql? (:native query))
         ^GaData response (do-query query)

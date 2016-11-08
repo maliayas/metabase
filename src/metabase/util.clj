@@ -19,8 +19,9 @@
                      InetSocketAddress
                      InetAddress)
            (java.sql SQLException Timestamp)
-           (java.util Calendar TimeZone)
+           (java.util Calendar Date TimeZone)
            javax.xml.bind.DatatypeConverter
+           org.joda.time.DateTime
            org.joda.time.format.DateTimeFormatter))
 
 ;; This is the very first log message that will get printed.
@@ -31,7 +32,7 @@
 ;; Set the default width for pprinting to 200 instead of 72. The default width is too narrow and wastes a lot of space for pprinting huge things like expanded queries
 (intern 'clojure.pprint '*print-right-margin* 200)
 
-(declare pprint-to-str)
+(declare ignore-exceptions pprint-to-str)
 
 ;;; ### Protocols
 
@@ -42,20 +43,22 @@
      Strings are parsed as ISO-8601."))
 
 (extend-protocol ITimestampCoercible
-  nil            (->Timestamp [_]
-                   nil)
-  Timestamp      (->Timestamp [this]
-                   this)
-  java.util.Date (->Timestamp [this]
-                   (Timestamp. (.getTime this)))
+  nil       (->Timestamp [_]
+              nil)
+  Timestamp (->Timestamp [this]
+              this)
+  Date       (->Timestamp [this]
+               (Timestamp. (.getTime this)))
   ;; Number is assumed to be a UNIX timezone in milliseconds (UTC)
-  Number         (->Timestamp [this]
-                   (Timestamp. this))
-  Calendar       (->Timestamp [this]
-                   (->Timestamp (.getTime this)))
+  Number    (->Timestamp [this]
+              (Timestamp. this))
+  Calendar  (->Timestamp [this]
+              (->Timestamp (.getTime this)))
   ;; Strings are expected to be in ISO-8601 format. `YYYY-MM-DD` strings *are* valid ISO-8601 dates.
-  String         (->Timestamp [this]
-                   (->Timestamp (DatatypeConverter/parseDateTime this))))
+  String    (->Timestamp [this]
+              (->Timestamp (DatatypeConverter/parseDateTime this)))
+  DateTime  (->Timestamp [this]
+              (->Timestamp (.getMillis this))))
 
 
 (defprotocol IDateTimeFormatterCoercible
@@ -72,6 +75,15 @@
                                                     (throw (Exception. (format "Invalid formatter name, must be one of:\n%s"
                                                                                (pprint-to-str (sort (keys time/formatters)))))))))
 
+(defn parse-date
+  "Parse a datetime string S with a custom DATE-FORMAT, which can be a format string,
+   clj-time formatter keyword, or anything else that can be coerced to a `DateTimeFormatter`.
+
+     (parse-date \"yyyyMMdd\" \"20160201\") -> #inst \"2016-02-01\"
+     (parse-date :date-time \"2016-02-01T00:00:00.000Z\") -> #inst \"2016-02-01\""
+  ^java.sql.Timestamp [date-format, ^String s]
+  (->Timestamp (time/parse (->DateTimeFormatter date-format) s)))
+
 
 (defprotocol ISO8601
   "Protocol for converting objects to ISO8601 formatted strings."
@@ -79,10 +91,11 @@
     "Coerce object to an ISO8601 date-time string such as \"2015-11-18T23:55:03.841Z\" with a given TIMEZONE."))
 
 (def ^:private ISO8601Formatter
-  ;; memoize this because the formatters are static.  they must be distinct per timezone though.
+  ;; memoize this because the formatters are static. They must be distinct per timezone though.
   (memoize (fn [timezone-id]
-             (if timezone-id (time/with-zone (time/formatters :date-time) (t/time-zone-for-id timezone-id))
-                             (time/formatters :date-time)))))
+             (if timezone-id
+               (time/with-zone (time/formatters :date-time) (t/time-zone-for-id timezone-id))
+               (time/formatters :date-time)))))
 
 (extend-protocol ISO8601
   nil                    (->iso-8601-datetime [_ _] nil)
@@ -132,8 +145,8 @@
   "Is S a valid ISO 8601 date string?"
   [^String s]
   (boolean (when (string? s)
-             (try (->Timestamp s)
-                  (catch Throwable e)))))
+             (ignore-exceptions
+               (->Timestamp s)))))
 
 
 (defn ->Date

@@ -59,27 +59,23 @@
                             (and (= unit :day) (< amount -1)) (str (- amount) "daysAgo")
                             :else                             (date->ga-date (u/date-trunc-or-extract unit (u/relative-date unit amount) (get-timezone-id))))))
 
-(defn- escape-map
-  [chars escape-char]
-  (into {} (zipmap chars (map (partial str escape-char) chars))))
 
-(defn- escape-for-regex
-  [str]
-  (s/escape str (escape-map ".\\+*?[^]$(){}=!<>|:-" "\\")))
+(defn- char-escape-map
+  "Generate a map of characters to escape to their escaped versions."
+  [chars-to-escape]
+  (into {} (for [c chars-to-escape]
+             {c (str "\\" c)})))
 
-(defn- escape-for-filter-clause
-  [str]
-  (s/escape str (escape-map ",;\\" "\\")))
+(def ^:private ^{:arglists '([s])} escape-for-regex         (u/rpartial s/escape (char-escape-map ".\\+*?[^]$(){}=!<>|:-")))
+(def ^:private ^{:arglists '([s])} escape-for-filter-clause (u/rpartial s/escape (char-escape-map ",;\\")))
 
-(defn- ga-filter
-  [& parts]
+(defn- ga-filter [& parts]
   (escape-for-filter-clause (apply str parts)))
 
 ;;; ### source-table
 
 (defn- handle-source-table [{{source-table-name :name} :source-table}]
-  {:pre [(or (string? source-table-name)
-             (keyword? source-table-name))]}
+  {:pre [(u/string-or-keyword? source-table-name)]}
   {:ids (str "ga:" source-table-name)})
 
 ;;; ### breakout
@@ -100,12 +96,12 @@
     :year           "ga:year"))
 
 (defn- handle-breakout [{breakout-clause :breakout}]
-  {:dimensions (if breakout-clause
+  {:dimensions (if-not breakout-clause
+                 ""
                  (s/join "," (for [breakout-field breakout-clause]
                                (if (instance? DateTimeField breakout-field)
                                  (unit->ga-dimension (:unit breakout-field))
-                                 (->rvalue breakout-field))))
-                 "")})
+                                 (->rvalue breakout-field)))))})
 
 ;;; ### filter
 
@@ -204,25 +200,20 @@
                  {:include-empty-rows false})
    :mbql? true})
 
-(defn- parse-date
-  [format str]
-  (.parse (java.text.SimpleDateFormat. format) str))
-
 (defn- parse-number
   [s]
   (edn/read-string (s/replace s #"^0+(.+)$" "$1")))
 
-
 (def ^:private ga-dimension->date-format-fn
   {"ga:minute"    parse-number
-   "ga:dateHour"  (partial parse-date "yyyyMMddHH")
+   "ga:dateHour"  (partial u/parse-date "yyyyMMddHH")
    "ga:hour"      parse-number
-   "ga:date"      (partial parse-date "yyyyMMdd")
+   "ga:date"      (partial u/parse-date "yyyyMMdd")
    "ga:dayOfWeek" (comp inc parse-number)
    "ga:day"       parse-number
-   "ga:yearWeek"  (partial parse-date "YYYYww")
+   "ga:yearWeek"  (partial u/parse-date "YYYYww")
    "ga:week"      parse-number
-   "ga:yearMonth" (partial parse-date "yyyyMM")
+   "ga:yearMonth" (partial u/parse-date "yyyyMM")
    "ga:month"     parse-number
    "ga:year"      parse-number})
 

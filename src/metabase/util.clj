@@ -32,7 +32,13 @@
 ;; Set the default width for pprinting to 200 instead of 72. The default width is too narrow and wastes a lot of space for pprinting huge things like expanded queries
 (intern 'clojure.pprint '*print-right-margin* 200)
 
-(declare ignore-exceptions pprint-to-str)
+(declare pprint-to-str)
+
+(defmacro ignore-exceptions
+  "Simple macro which wraps the given expression in a try/catch block and ignores the exception if caught."
+  {:style/indent 0}
+  [& body]
+  `(try ~@body (catch Throwable ~'_)))
 
 ;;; ### Protocols
 
@@ -125,7 +131,8 @@
    DATE is anything that can coerced to a `Timestamp` via `->Timestamp`, such as a `Date`, `Timestamp`,
    `Long` (ms since the epoch), or an ISO-8601 `String`. DATE defaults to the current moment in time.
 
-   DATE-FORMAT is anything that can be passed to `->DateTimeFormatter`, such as `String` (using [the usual date format args](http://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html)),
+   DATE-FORMAT is anything that can be passed to `->DateTimeFormatter`, such as `String`
+   (using [the usual date format args](http://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html)),
    `Keyword`, or `DateTimeFormatter`.
 
 
@@ -350,13 +357,6 @@
   [pred? args & [default]]
   (if (pred? (first args)) [(first args) (next args)]
       [default args]))
-
-
-(defmacro ignore-exceptions
-  "Simple macro which wraps the given expression in a try/catch block and ignores the exception if caught."
-  {:style/indent 0}
-  [& body]
-  `(try ~@body (catch Throwable ~'_)))
 
 
 ;; TODO - rename to `email?`

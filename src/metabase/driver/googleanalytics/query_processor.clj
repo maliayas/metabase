@@ -4,7 +4,7 @@
             [clojure.tools.logging :as log]
             [clojure.tools.reader.edn :as edn]
             [medley.core :as m]
-            (metabase.query-processor [expand :as expand])
+            [metabase.query-processor.expand :as ql]
             [metabase.util :as u])
   (:import java.sql.Timestamp
            java.util.Date
@@ -256,7 +256,7 @@
 
 (defn- built-in-metrics
   [{{[aggregation-type metric-name] :aggregation} :query}]
-  (when (and (= :metric (expand/normalize-token aggregation-type))
+  (when (and (= :metric (ql/normalize-token aggregation-type))
              (string? metric-name))
         metric-name))
 
@@ -271,7 +271,7 @@
 (defn- built-in-segment?
   [[filter-type segment-name, :as filter-clause]]
   (and (sequential? filter-clause)
-       (= :segment (expand/normalize-token filter-type))
+       (= :segment (ql/normalize-token filter-type))
        (string? segment-name)))
 
 (defn- built-in-segments

@@ -24,6 +24,7 @@
 (def ^:private ^:const max-rows-maximum 10000)
 
 (def ^:const ga-type->base-type
+  "Map of Google Analytics field types to Metabase types."
   {"STRING"      :type/Text
    "FLOAT"       :type/Float
    "INTEGER"     :type/Integer
